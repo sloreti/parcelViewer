@@ -1,6 +1,8 @@
 __author__ = 'lukeloreti'
 
-import re, requests
+from PIL import Image
+from StringIO import StringIO
+import multiprocessing, re, requests
 
 class CityDataApi(object):
 
@@ -35,30 +37,45 @@ class CityDataApi(object):
 
 class GoogleMapsApi(object):
 
-    url = 'https://maps.googleapis.com/maps/api/streetview'
-    appToken = 'AIzaSyD6Voni2-9GyirsyKyDT6Ng_l0_BxSLqjs'
+    streetUrl = 'https://maps.googleapis.com/maps/api/streetview'
+    satelliteUrl = 'https://maps.googleapis.com/maps/api/staticmap'
+    AppToken = 'AIzaSyD6Voni2-9GyirsyKyDT6Ng_l0_BxSLqjs'
 
-    def collectPropertyStreetView(self, payload):
+    def collectPropertyView(self, x, y, type='satellite'):
 
-        payload['key'] = GoogleMapsApi.appToken
-        resp = requests.get(GoogleMapsApi.url, params=payload)
+        payload = {'key' : GoogleMapsApi.AppToken, 'size' : '600x400'}
+        if type == 'street':
+            url = GoogleMapsApi.streetUrl
+            payload['location'] = x + ', ' + 'y'
+        else:
+            url = GoogleMapsApi.satelliteUrl
+            payload['maptype'] = type
+            payload['zoom'] = '19'
+            payload['center'] = x + ', ' + y
+
+
+        resp = requests.get(url, params=payload)
         if resp.status_code != 200:
             # This means something went wrong.
             raise Exception('GET GoogleMapsApi {}'.format(resp.status_code))
         else:
             try:
-                properties = resp.json()
+                i = Image.open(StringIO(resp.content))
+                #i.show()
             except ValueError:
                 print "Did not receive a valid JSON object."
 
-        return properties
+        print "done"
+
+
 
 c = CityDataApi()
 g = GoogleMapsApi()
 
-properties = c.request({'ptype' : '985'})
+properties = c.request({'lu' : 'R1'})
 for p in properties:
-    match = re.findall(r'-?\d+\.?\d*', p[location])
-    x = float(match[0])
-    y = float(match[1])
+    match = re.findall(r'-?\d+\.?\d*', p['location'])
+    x = match[0]
+    y = match[1]
+    g.collectPropertyView(x,y)
 
